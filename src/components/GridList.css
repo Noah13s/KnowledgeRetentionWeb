@@ -1,0 +1,102 @@
+.gridlist {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+    gap: 15px;
+    padding: 15px;
+    box-sizing: border-box;
+    align-content: start;
+}
+
+.card {
+    background: #1e1f26;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    overflow: hidden;
+}
+
+.thumbnail {
+    width: auto;
+    margin: auto;
+    height: 100px;
+    object-fit: cover;
+    border-radius: 8px;
+    display: block;
+    -webkit-user-drag: none;
+    user-drag: none;
+}
+
+.folder {
+    font-size: 80px;
+    height: 100px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.title {
+    margin-top: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.card {
+    background: #1e1f26;
+    border-radius: 10px;
+    padding: 10px;
+    text-align: center;
+    overflow: hidden;
+    position: relative;
+    cursor: pointer;
+    transition: all 0.2s ease;
+
+    /* --- ADD THESE TO DISABLE MOBILE TEXT SELECTION & CALLOUTS --- */
+    -webkit-user-select: none;
+    /* Safari/Chromium/Capacitor iOS & Android */
+    -moz-user-select: none;
+    /* Firefox */
+    -ms-user-select: none;
+    /* IE/Edge */
+    user-select: none;
+    /* Standard */
+
+    /* Disables the default callout menu (like 'Save Image' on long press) */
+    -webkit-touch-callout: none;
+
+    /* Prevents the default orange/blue tap highlight color on mobile webviews */
+    -webkit-tap-highlight-color: transparent;
+}
+
+/* Visually distinguish selected items */
+.card.selected {
+    border: 3px solid #3498db;
+    background: #2a3c53;
+    transform: scale(0.95);
+    /* Slight shrink effect */
+}
+
+.selection-indicator {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background-color: #3498db;
+    color: white;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    font-weight: bold;
+    font-size: 14px;
+    box-shadow: 0px 2px 4px rgba(0, 0, 0, 0.4);
+}
+
+.card.confirmed {
+  border-color: #2ecc71;
+}
+.selection-indicator.confirmed-indicator {
+  background-color: #2ecc71;
+}

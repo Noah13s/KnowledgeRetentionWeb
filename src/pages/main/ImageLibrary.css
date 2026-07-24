@@ -1,0 +1,6 @@
+button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    background-color: #7f8c8d !important; /* Muted gray override */
+    color: #bdc3c7 !important;
+}
