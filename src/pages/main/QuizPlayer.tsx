@@ -51,6 +51,8 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
     const [isJudging, setIsJudging] = useState(false);
     const [showResult, setShowResult] = useState(false);
     const [lastAnswerCorrect, setLastAnswerCorrect] = useState(false);
+    const [showingAnswer, setShowingAnswer] = useState(false);
+    const [revealedCorrectIndex, setRevealedCorrectIndex] = useState<number | null>(null);
 
     const currentQuiz = quizzes[currentIndex];
     const answers = normalizeAnswers(currentQuiz?.answers ?? []);
@@ -62,6 +64,8 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
     function resetForNextQuestion() {
         setSelectedAnswerIndex(null);
         setInputValue('');
+        setShowingAnswer(false);
+        setRevealedCorrectIndex(null);
     }
 
     function isConfirmEnabled() {
@@ -102,6 +106,20 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
         }
 
         setLastAnswerCorrect(isCorrect);
+        setShowingAnswer(false);
+        setShowResult(true);
+    }
+
+    function handleShowAnswer() {
+        if (!currentQuiz || isJudging) return;
+
+        const correctIndex = answers.findIndex((answer) => answer.correct);
+        if (correctIndex !== -1 && currentQuiz.answerType !== 'Input') {
+            setRevealedCorrectIndex(correctIndex);
+        }
+
+        setLastAnswerCorrect(false);
+        setShowingAnswer(true);
         setShowResult(true);
     }
 
@@ -157,11 +175,11 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
 
             {currentQuiz.questionType === 'Question + Image' && currentQuiz.questionImage && (
                 <div style={{ display: "flex", justifyContent: "center" }}>
-                    <div style={{ width: "60vw", height: "20vh", overflow: "hidden" }}>
+                    <div style={{ width: "80vw", height: "30vh", overflow: "hidden" }}>
                         <img
                             src={resolveImageSrc(currentQuiz.questionImage, externalBasePath)}
                             alt="Question"
-                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                            style={{ width: "100%", height: "100%", objectFit: "contain" }}
                         />
                     </div>
                 </div>
@@ -180,53 +198,59 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
 
                 {currentQuiz.answerType === 'Text select' && (
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-                        {answers.map((answer, index) => (
-                            <button
-                                key={index}
-                                onClick={() => setSelectedAnswerIndex(index)}
-                                style={{
-                                    padding: "10px",
-                                    backgroundColor: selectedAnswerIndex === index ? "#3498db" : undefined,
-                                    color: selectedAnswerIndex === index ? "white" : undefined,
-                                }}
-                            >
-                                {answer.text}
-                            </button>
-                        ))}
+                        {answers.map((answer, index) => {
+                            const isCorrectReveal = revealedCorrectIndex === index;
+                            return (
+                                <button
+                                    key={index}
+                                    onClick={() => setSelectedAnswerIndex(index)}
+                                    style={{
+                                        padding: "10px",
+                                        backgroundColor: selectedAnswerIndex === index || isCorrectReveal ? "#3498db" : undefined,
+                                        color: selectedAnswerIndex === index || isCorrectReveal ? "white" : undefined,
+                                    }}
+                                >
+                                    {answer.text}
+                                </button>
+                            );
+                        })}
                     </div>
                 )}
 
                 {currentQuiz.answerType === 'Image select' && (
                     <div style={{ display: "flex", flexWrap: "wrap", gap: "8px", justifyContent: "center" }}>
-                        {answers.map((answer, index) => (
-                            <div
-                                key={index}
-                                onClick={() => setSelectedAnswerIndex(index)}
-                                style={{
-                                    width: "40vw",
-                                    display: "flex",
-                                    flexDirection: "column",
-                                    alignItems: "center",
-                                    gap: "5px",
-                                    cursor: "pointer",
-                                    border: selectedAnswerIndex === index ? "2px solid #3498db" : "2px solid transparent",
-                                    padding: "5px",
-                                }}
-                            >
-                                <div style={{ width: "100%", height: "15vh", overflow: "hidden" }}>
-                                    {answer.image ? (
-                                        <img
-                                            src={resolveImageSrc(answer.image, externalBasePath)}
-                                            alt={answer.text}
-                                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                        />
-                                    ) : (
-                                        <div className="placeholder-img">No Image</div>
-                                    )}
+                        {answers.map((answer, index) => {
+                            const isCorrectReveal = revealedCorrectIndex === index;
+                            return (
+                                <div
+                                    key={index}
+                                    onClick={() => setSelectedAnswerIndex(index)}
+                                    style={{
+                                        width: "40vw",
+                                        display: "flex",
+                                        flexDirection: "column",
+                                        alignItems: "center",
+                                        gap: "5px",
+                                        cursor: "pointer",
+                                        border: selectedAnswerIndex === index || isCorrectReveal ? "2px solid #3498db" : "2px solid transparent",
+                                        padding: "5px",
+                                    }}
+                                >
+                                    <div style={{ width: "100%", height: "22vh", overflow: "hidden" }}>
+                                        {answer.image ? (
+                                            <img
+                                                src={resolveImageSrc(answer.image, externalBasePath)}
+                                                alt={answer.text}
+                                                style={{ width: "100%", height: "100%", objectFit: "contain" }}
+                                            />
+                                        ) : (
+                                            <div className="placeholder-img">No Image</div>
+                                        )}
+                                    </div>
+                                    {answer.text && <div style={{ color: "white", fontSize: "12px" }}>{answer.text}</div>}
                                 </div>
-                                {answer.text && <div style={{ color: "white", fontSize: "12px" }}>{answer.text}</div>}
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
             </div>
@@ -234,10 +258,15 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
             <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "10px", padding: "10px" }}>
                 {showResult && (
                     <div style={{ color: lastAnswerCorrect ? "#2ecc71" : "#e74c3c", fontWeight: "bold" }}>
-                        {lastAnswerCorrect ? 'Correct!' : 'Wrong'}
-                        {!lastAnswerCorrect && currentQuiz.answerType === 'Input' && currentQuiz.inputAnswer && (
+                        {showingAnswer ? 'Answer revealed' : lastAnswerCorrect ? 'Correct!' : 'Wrong'}
+                        {currentQuiz.answerType === 'Input' && currentQuiz.inputAnswer && (
                             <div style={{ fontWeight: "normal", fontSize: "12px", color: "white", opacity: 0.8 }}>
                                 Correct answer: {currentQuiz.inputAnswer}
+                            </div>
+                        )}
+                        {showingAnswer && currentQuiz.answerType !== 'Input' && answers.find((answer) => answer.correct)?.text && (
+                            <div style={{ fontWeight: "normal", fontSize: "12px", color: "white", opacity: 0.8 }}>
+                                Correct answer: {answers.find((answer) => answer.correct)?.text}
                             </div>
                         )}
                     </div>
@@ -247,13 +276,22 @@ export default function QuizPlayer({ quizzes, externalBasePath, onExit }: QuizPl
                         Next
                     </button>
                 ) : (
-                    <button
-                        style={{ backgroundColor: "green", height: "6vh", width: "40vw" }}
-                        disabled={!isConfirmEnabled() || isJudging}
-                        onClick={handleConfirm}
-                    >
-                        {isJudging ? 'Thinking…' : 'Confirm answer'}
-                    </button>
+                    <div style={{ display: "flex", gap: "10px", width: "100%", justifyContent: "center" }}>
+                        <button
+                            style={{ backgroundColor: "green", height: "6vh", width: "40vw" }}
+                            disabled={!isConfirmEnabled() || isJudging}
+                            onClick={handleConfirm}
+                        >
+                            {isJudging ? 'Thinking…' : 'Confirm answer'}
+                        </button>
+                        <button
+                            style={{ backgroundColor: "#7f8c8d", color: "white", height: "6vh", width: "40vw" }}
+                            onClick={handleShowAnswer}
+                            disabled={isJudging || (currentQuiz.answerType === 'Input' && !(currentQuiz.inputAnswer?.trim())) || (!answers.some((answer) => answer.correct) && currentQuiz.answerType !== 'Input')}
+                        >
+                            Show answer
+                        </button>
+                    </div>
                 )}
             </div>
         </div>
