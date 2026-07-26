@@ -242,6 +242,31 @@ export async function preloadLocalLlm() {
     await getContext();
 }
 
+export async function warmupLocalLlmIfDownloaded(): Promise<boolean> {
+    const onDevice = await isModelOnDevice();
+    if (!onDevice) return false;
+
+    try {
+        const context = await getContext();
+        if (context && typeof context.completion === 'function') {
+            try {
+                await context.completion({
+                    prompt: 'Warmup',
+                    n_predict: 1,
+                    temperature: 0,
+                    stop: ['\n'],
+                });
+            } catch (warmupError) {
+                console.warn('Local LLM warmup completion failed:', warmupError);
+            }
+        }
+
+        return true;
+    } catch (e) {
+        return false;
+    }
+}
+
 export async function unloadLocalLlm() {
     if (contextPromise) {
         try {

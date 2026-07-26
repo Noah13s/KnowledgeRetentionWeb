@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
     getLlmStatus,
     getLlmConfig,
@@ -11,6 +11,7 @@ import {
     judgeAnswerWithLlm,
     preloadLocalLlm,
     unloadLocalLlm,
+    warmupLocalLlmIfDownloaded,
 } from '../../lib/localLlm';
 import type { LlmStatus, LlmConfig, DownloadProgress, CompletionStats } from '../../lib/localLlm';
 
@@ -39,6 +40,8 @@ export default function AiSettingsPage() {
     });
     const [config, setConfigState] = useState<LlmConfig>(getLlmConfig());
     const [isBusy, setIsBusy] = useState(false);
+    const [readyNotification, setReadyNotification] = useState<string | null>(null);
+    const notificationTimerRef = useRef<number | null>(null);
 
     const [testQuestion, setTestQuestion] = useState('What color is the sky?');
     const [testExpected, setTestExpected] = useState('Blue');
@@ -52,16 +55,45 @@ export default function AiSettingsPage() {
         setProgress(getDownloadProgress());
     }
 
+    function clearReadyNotification() {
+        if (notificationTimerRef.current !== null) {
+            window.clearTimeout(notificationTimerRef.current);
+            notificationTimerRef.current = null;
+        }
+        setReadyNotification(null);
+    }
+
+    function showReadyNotification(message: string) {
+        if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification('AI model ready', { body: message });
+            return;
+        }
+
+        clearReadyNotification();
+        setReadyNotification(message);
+        notificationTimerRef.current = window.setTimeout(() => {
+            setReadyNotification(null);
+            notificationTimerRef.current = null;
+        }, 7000);
+    }
+
     useEffect(() => {
         refresh();
         const interval = setInterval(refresh, 500);
-        return () => clearInterval(interval);
+        return () => {
+            clearInterval(interval);
+            clearReadyNotification();
+        };
     }, []);
 
     async function handleDownload() {
         setIsBusy(true);
         try {
             await downloadModel();
+            const warmed = await warmupLocalLlmIfDownloaded();
+            if (warmed) {
+                showReadyNotification('AI model is downloaded and ready to use.');
+            }
         } catch (e) {
             console.error('Failed to download model:', e);
             alert('Failed to download the model. Check the console for details.');
@@ -149,11 +181,25 @@ export default function AiSettingsPage() {
     return (
         <div style={{ display: "flex", flexDirection: "column", gap: "15px", padding: "15px", color: "white", overflowY: "auto" }}>
             <h2 style={{ margin: 0 }}>AI Grader</h2>
-            <p style={{ fontSize: "13px", opacity: 0.7, margin: 0 }}>
-                A small language model runs fully on this device to grade free-text quiz answers,
-                allowing for typos and rewording instead of requiring an exact match. The model file
-                is not bundled with the app — download it below the first time you use this device.
-            </p>
+        {readyNotification && (
+            <div
+                style={{
+                    background: '#2ecc71',
+                    color: 'white',
+                    padding: '10px 12px',
+                    borderRadius: '6px',
+                    marginTop: '10px',
+                    textAlign: 'center',
+                }}
+            >
+                {readyNotification}
+            </div>
+        )}
+        <p style={{ fontSize: "13px", opacity: 0.7, margin: 0 }}>
+            A small language model runs fully on this device to grade free-text quiz answers,
+            allowing for typos and rewording instead of requiring an exact match. The model file
+            is not bundled with the app — download it below the first time you use this device.
+        </p>
 
             <div style={{ border: "1px solid #444", borderRadius: "8px", padding: "12px", display: "flex", flexDirection: "column", gap: "8px" }}>
                 <h3 style={{ margin: 0, fontSize: "14px" }}>Model file</h3>
