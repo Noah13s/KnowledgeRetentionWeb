@@ -11,6 +11,7 @@ export type GridItem = {
     id: string;
     title: string;
     path: string;
+    filePath?: string;
     type: "file" | "directory";
     image?: string;
 };
@@ -134,6 +135,32 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
     const [pickedPath, setPickedPath] = usePersistentState<string | null>('imageLibrary.pickedPath', null);
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [modalImage, setModalImage] = useState<{
+        src: string;
+        title: string;
+        width?: number;
+        height?: number;
+        sizeBytes?: number;
+    } | null>(null);
+    const [zoomLevel, setZoomLevel] = useState(1);
+    const [pan, setPan] = useState({ x: 0, y: 0 });
+    const pointerState = React.useRef<{
+        pointers: Map<number, { x: number; y: number }>;
+        startPan: { x: number; y: number };
+        lastPan: { x: number; y: number };
+        startDistance: number;
+        initialZoom: number;
+        startMidpoint: { x: number; y: number };
+        lastMidpoint: { x: number; y: number };
+    }>({
+        pointers: new Map(),
+        startPan: { x: 0, y: 0 },
+        lastPan: { x: 0, y: 0 },
+        startDistance: 0,
+        initialZoom: 1,
+        startMidpoint: { x: 0, y: 0 },
+        lastMidpoint: { x: 0, y: 0 },
+    });
 
     useEffect(() => {
         loadImages();
@@ -155,6 +182,7 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                         id: String(index),
                         title: file.name,
                         path: file.uri ?? file.name,
+                        filePath: file.type === "file" ? `${currentPath}/${file.name}` : undefined,
                         type: file.type === "directory" ? "directory" : "file",
                         image,
                     };
@@ -207,6 +235,166 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
         }
     }
 
+    function formatBytes(bytes: number) {
+        if (bytes < 1024) return `${bytes} B`;
+        const units = ["KB", "MB", "GB"];
+        let value = bytes / 1024;
+        let index = 0;
+        while (value >= 1024 && index < units.length - 1) {
+            value /= 1024;
+            index += 1;
+        }
+        return `${value.toFixed(1)} ${units[index]}`;
+    }
+
+    async function openImageModal(item: GridItem) {
+        if (!item.image) return;
+        setZoomLevel(1);
+        setPan({ x: 0, y: 0 });
+
+        const image = new Image();
+        image.src = item.image;
+        const modalData: {
+            src: string;
+            title: string;
+            width?: number;
+            height?: number;
+            sizeBytes?: number;
+        } = { src: item.image, title: item.title };
+
+        await new Promise<void>((resolve) => {
+            if (image.complete) {
+                modalData.width = image.naturalWidth;
+                modalData.height = image.naturalHeight;
+                resolve();
+            } else {
+                image.onload = () => {
+                    modalData.width = image.naturalWidth;
+                    modalData.height = image.naturalHeight;
+                    resolve();
+                };
+                image.onerror = () => {
+                    resolve();
+                };
+            }
+        });
+
+        if (item.filePath) {
+            try {
+                const stats = await Filesystem.stat({ path: item.filePath, directory: Directory.External });
+                modalData.sizeBytes = Number(stats.size ?? 0);
+            } catch (e) {
+                console.warn("Unable to get file stats for image modal details:", e);
+            }
+        }
+
+        setModalImage(modalData);
+    }
+
+    function closeModal() {
+        setModalImage(null);
+        setZoomLevel(1);
+        setPan({ x: 0, y: 0 });
+        pointerState.current.pointers.clear();
+    }
+
+    function adjustZoom(delta: number) {
+        setZoomLevel((prev) => {
+            const next = Math.max(0.5, Math.min(prev + delta, 4));
+            if (next === 1) {
+                setPan({ x: 0, y: 0 });
+            }
+            return next;
+        });
+    }
+
+    function handleModalWheel(event: React.WheelEvent<HTMLDivElement>) {
+        event.preventDefault();
+        const delta = event.deltaY > 0 ? -0.1 : 0.1;
+        adjustZoom(delta);
+    }
+
+    function getPointerDistance(a: { x: number; y: number }, b: { x: number; y: number }) {
+        const dx = a.x - b.x;
+        const dy = a.y - b.y;
+        return Math.sqrt(dx * dx + dy * dy);
+    }
+
+    function handlePointerDown(event: React.PointerEvent<HTMLDivElement>) {
+        const point = { x: event.clientX, y: event.clientY };
+        event.currentTarget.setPointerCapture(event.pointerId);
+        pointerState.current.pointers.set(event.pointerId, point);
+
+        if (pointerState.current.pointers.size === 1) {
+            pointerState.current.startPan = point;
+            pointerState.current.lastPan = pan;
+        }
+
+        if (pointerState.current.pointers.size === 2) {
+            const coords = Array.from(pointerState.current.pointers.values());
+            const midpoint = { x: (coords[0].x + coords[1].x) / 2, y: (coords[0].y + coords[1].y) / 2 };
+            pointerState.current.startDistance = getPointerDistance(coords[0], coords[1]);
+            pointerState.current.initialZoom = zoomLevel;
+            pointerState.current.lastPan = pan;
+            pointerState.current.startPan = point;
+            pointerState.current.startMidpoint = midpoint;
+            pointerState.current.lastMidpoint = midpoint;
+        }
+    }
+
+    function handlePointerMove(event: React.PointerEvent<HTMLDivElement>) {
+        if (!pointerState.current.pointers.has(event.pointerId)) return;
+        const point = { x: event.clientX, y: event.clientY };
+        pointerState.current.pointers.set(event.pointerId, point);
+
+        if (pointerState.current.pointers.size === 1) {
+            const deltaX = point.x - pointerState.current.startPan.x;
+            const deltaY = point.y - pointerState.current.startPan.y;
+            setPan({ x: pointerState.current.lastPan.x + deltaX, y: pointerState.current.lastPan.y + deltaY });
+            return;
+        }
+
+        if (pointerState.current.pointers.size === 2) {
+            const coords = Array.from(pointerState.current.pointers.values());
+            const distance = getPointerDistance(coords[0], coords[1]);
+            const midpoint = { x: (coords[0].x + coords[1].x) / 2, y: (coords[0].y + coords[1].y) / 2 };
+            const nextZoom = Math.max(0.5, Math.min(pointerState.current.initialZoom * (distance / Math.max(pointerState.current.startDistance, 1)), 4));
+
+            const deltaMidpoint = {
+                x: midpoint.x - pointerState.current.lastMidpoint.x,
+                y: midpoint.y - pointerState.current.lastMidpoint.y,
+            };
+
+            const wrapper = event.currentTarget.getBoundingClientRect();
+            const center = { x: wrapper.left + wrapper.width / 2, y: wrapper.top + wrapper.height / 2 };
+            const zoomAdjustment = {
+                x: (midpoint.x - center.x - pan.x) * (1 - nextZoom / zoomLevel),
+                y: (midpoint.y - center.y - pan.y) * (1 - nextZoom / zoomLevel),
+            };
+
+            const nextPan = {
+                x: pan.x + deltaMidpoint.x + zoomAdjustment.x,
+                y: pan.y + deltaMidpoint.y + zoomAdjustment.y,
+            };
+
+            setZoomLevel(nextZoom);
+            setPan(nextPan);
+            pointerState.current.lastMidpoint = midpoint;
+        }
+    }
+
+    function handlePointerUp(event: React.PointerEvent<HTMLDivElement>) {
+        pointerState.current.pointers.delete(event.pointerId);
+        if (pointerState.current.pointers.size === 1) {
+            const remaining = Array.from(pointerState.current.pointers.entries())[0];
+            if (remaining) {
+                const [, point] = remaining;
+                pointerState.current.startPan = point;
+                pointerState.current.lastPan = pan;
+            }
+        }
+    }
+
     function handleItemClick(item: GridItem) {
         if (isPickerMode) {
             if (item.type === "directory") {
@@ -225,12 +413,12 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                     return [...prev, item.path];
                 }
             });
+            return;
+        }
+        if (item.type === "directory") {
+            setCurrentPath(`${currentPath}/${item.title}`);
         } else {
-            if (item.type === "directory") {
-                setCurrentPath(`${currentPath}/${item.title}`);
-            } else {
-                console.log("Selected image:", item.title);
-            }
+            openImageModal(item);
         }
     }
 
@@ -449,8 +637,58 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                     }
                 />
             </div>
+            {modalImage && (
+               <div className="image-modal-overlay" onClick={closeModal}>
+                   <div
+                       className="image-modal-content"
+                       onClick={(e) => e.stopPropagation()}
+                   >
+                       <div className="image-modal-toolbar">
+                           <button
+                               type="button"
+                               onClick={() => {
+                                   setZoomLevel(1);
+                                   setPan({ x: 0, y: 0 });
+                               }}
+                           >
+                               Reset zoom
+                           </button>
+                           <button type="button" onClick={closeModal}>Close</button>
+                       </div>
+                       <div
+                           className="image-modal-image-wrapper"
+                           onPointerDown={handlePointerDown}
+                           onPointerMove={handlePointerMove}
+                           onPointerUp={handlePointerUp}
+                           onPointerCancel={handlePointerUp}
+                           onWheel={handleModalWheel}
+                           style={{ touchAction: 'none' }}
+                       >
+                           <img
+                               className="image-modal-image"
+                               src={modalImage.src}
+                               alt={modalImage.title}
+                               style={{
+                                   transform: `scale(${zoomLevel}) translate(${pan.x}px, ${pan.y}px)`,
+                                   transformOrigin: 'center center',
+                               }}
+                               draggable={false}
+                           />
+                       </div>
+                       <div className="image-modal-caption">{modalImage.title}</div>
+                       <div className="image-modal-details">
+                           {modalImage.width && modalImage.height && (
+                               <span>Resolution: {modalImage.width} × {modalImage.height}</span>
+                           )}
+                           {modalImage.sizeBytes !== undefined && (
+                               <span>{modalImage.width && modalImage.height ? ' • ' : ''}Size: {formatBytes(modalImage.sizeBytes)}</span>
+                           )}
+                       </div>
+                   </div>
+               </div>
+            )}
             {!isPickerMode && (
-                <div style={{ flex: "0 0 auto", display: "flex", flexWrap: "wrap", gap: "5px", justifyContent: "center" }}>
+               <div style={{ flex: "0 0 auto", display: "flex", flexWrap: "wrap", gap: "5px", justifyContent: "center" }}>
                     <button onClick={handleExportAll} disabled={isExporting || isImporting}>
                         {isExporting ? "Exporting…" : "Export All Data"}
                     </button>

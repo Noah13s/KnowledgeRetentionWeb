@@ -4,3 +4,78 @@ button:disabled {
     background-color: #7f8c8d !important; /* Muted gray override */
     color: #bdc3c7 !important;
 }
+
+.image-modal-overlay {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.85);
+    z-index: 1000;
+}
+
+.image-modal-content {
+    position: relative;
+    max-width: 95vw;
+    max-height: 95vh;
+    width: min(95vw, 900px);
+    background: #111;
+    border: 1px solid #333;
+    border-radius: 10px;
+    padding: 12px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    box-shadow: 0 0 30px rgba(0, 0, 0, 0.6);
+}
+
+.image-modal-toolbar {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.image-modal-toolbar button {
+    padding: 8px 10px;
+    background: #2c3e50;
+    color: white;
+    border: 1px solid #444;
+    border-radius: 6px;
+    cursor: pointer;
+}
+
+.image-modal-image-wrapper {
+    flex: 1;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+    border-radius: 8px;
+}
+
+.image-modal-image {
+    max-width: 100%;
+    max-height: 100%;
+    user-select: none;
+    pointer-events: none;
+}
+
+.image-modal-caption {
+    color: white;
+    font-size: 0.9rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+}
+
+.image-modal-details {
+    color: #bdc3c7;
+    font-size: 0.8rem;
+    text-align: center;
+    opacity: 0.9;
+}
+
+.image-modal-details span {
+    display: inline;
+}
