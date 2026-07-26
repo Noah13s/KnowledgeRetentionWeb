@@ -1,6 +1,7 @@
-import React, { useEffect, useState } from "react";
+import React, { useCallback, useEffect, useState } from "react";
 import GridList from "../../components/GridList";
 import { Filesystem, Directory } from '@capacitor/filesystem';
+import { App as CapacitorApp } from '@capacitor/app';
 import './ImageLibrary.css';
 import { Capacitor } from '@capacitor/core';
 import { usePersistentState } from '../../lib/usePersistentState';
@@ -473,14 +474,31 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
         }
     }
 
-    function handleGoBack() {
+    const handleGoBack = useCallback(() => {
+        if (modalImage) {
+            setModalImage(null);
+            setZoomLevel(1);
+            setPan({ x: 0, y: 0 });
+            pointerState.current.pointers.clear();
+            return;
+        }
         if (currentPath === "images") return;
         const pathParts = currentPath.split("/");
         pathParts.pop();
         setCurrentPath(pathParts.join("/"));
-        cancelSelection();
+        setIsSelectionMode(false);
+        setSelectedPaths([]);
         setPickedPath(null);
-    }
+    }, [currentPath, modalImage, setCurrentPath, setIsSelectionMode, setSelectedPaths, setPickedPath, setZoomLevel, setPan]);
+
+    useEffect(() => {
+        if (currentPath === "images") return;
+        const listenerPromise = CapacitorApp.addListener('backButton', handleGoBack);
+
+        return () => {
+            listenerPromise.then((listener) => listener.remove());
+        };
+    }, [currentPath, handleGoBack]);
 
     function cancelSelection() {
         setIsSelectionMode(false);

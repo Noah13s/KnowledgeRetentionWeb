@@ -1,4 +1,5 @@
-import { useEffect } from 'react';
+import { useCallback, useEffect } from 'react';
+import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import './CategoryEditor.css';
@@ -172,9 +173,19 @@ export default function CategoryPage() {
     setCategoryPath((prev) => [...prev, category.Name]);
   };
 
-  const goBack = () => {
+  const goBack = useCallback(() => {
     setCategoryPath((prev) => prev.slice(0, -1));
-  };
+    setIsSelectionMode(false);
+    setSelectedNames([]);
+  }, [setCategoryPath, setIsSelectionMode, setSelectedNames]);
+
+  useEffect(() => {
+    if (categoryPath.length === 0 || isPickingImage || isEditingQuiz || isPlayingQuiz) return;
+    const listenerPromise = CapacitorApp.addListener('backButton', goBack);
+    return () => {
+      listenerPromise.then((listener) => listener.remove());
+    };
+  }, [categoryPath, goBack, isPickingImage, isEditingQuiz, isPlayingQuiz]);
 
   const handleItemInteraction = (category: Category) => {
     if (isSelectionMode) {
