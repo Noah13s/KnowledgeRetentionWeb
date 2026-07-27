@@ -57,6 +57,7 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
     const [questionType, setQuestionType] = useState(initialQuiz?.questionType ?? QUESTION_TYPES[0]);
     const [question, setQuestion] = useState(initialQuiz?.question ?? '');
     const [questionImage, setQuestionImage] = useState(initialQuiz?.questionImage ?? '');
+    const [webSearch, setWebSearch] = useState(initialQuiz?.webSearch ?? '');
     const [answerType, setAnswerType] = useState(initialQuiz?.answerType ?? ANSWER_TYPES[0]);
     const [inputAnswerType, setInputAnswerType] = useState(initialQuiz?.inputAnswerType ?? INPUT_ANSWER_TYPES[0]);
     const [inputAnswer, setInputAnswer] = useState(initialQuiz?.inputAnswer ?? '');
@@ -107,7 +108,7 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
             questionType,
             question,
             questionImage,
-            webSearch: initialQuiz?.webSearch ?? '',
+        webSearch,
             answerType,
             inputAnswerType,
             inputAnswer,
@@ -155,7 +156,7 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
                 />
             </div>
             {questionType === 'Question + Image' && (
-                <div style={{ display: "flex", justifyContent: "center" }}>
+                <div style={{ display: "flex", justifyContent: "center", flexDirection: "column", gap: "8px" }}>
                     <div
                         onClick={() => setPickTarget('question')}
                         style={{
@@ -178,6 +179,16 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
                         ) : (
                             <span style={{ color: "white", opacity: 0.7 }}>Tap to set image</span>
                         )}
+                    </div>
+                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "80vw" }}>
+                        <label style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Web search query (optional)</label>
+                        <input
+                            style={{ width: "100%" }}
+                            value={webSearch}
+                            onChange={(e) => setWebSearch(e.target.value)}
+                            placeholder="Enter terms to search for alternative images"
+                        />
+                        <small style={{ color: "#666" }}>If specified, this query will be used to search the web for alternative pictures for the quiz.</small>
                     </div>
                 </div>
             )}
