@@ -78,4 +78,24 @@ npx cap run android
 
 ## License
 
-This repository currently has no license file. Add one if you want to publish or share this project more broadly.
+## License
+
+This repository currently has no license file. Add one if you want to publish or share this project more broadly. Recommended: add an OSI-approved license such as MIT or Apache-2.0.
+
+## Contributing
+
+Contributions are welcome — please follow these steps to contribute:
+
+1. Fork the repository and create a branch named `feature/your-feature`.
+2. Install dependencies: `npm install`.
+3. Run the development server: `npm run dev` and verify your changes.
+4. Open a pull request with a clear description of the problem and the changes made.
+
+Please follow existing code style and add tests for significant changes when possible.
+
+## Author & Contact
+
+- Author: Noah (Noah13s)
+- Repository: https://github.com/Noah13s/KnowledgeRetentionWeb
+
+

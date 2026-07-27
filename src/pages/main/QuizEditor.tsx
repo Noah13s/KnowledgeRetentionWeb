@@ -64,8 +64,6 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
     const [answers, setAnswers] = useState<QuizAnswer[]>(normalizeAnswers(initialQuiz?.answers ?? []));
     const [pickTarget, setPickTarget] = useState<PickTarget | null>(null);
 
-
-
     const category = initialQuiz?.category ?? defaultCategory;
 
     function handleClearAnswers() {
@@ -108,7 +106,7 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
             questionType,
             question,
             questionImage,
-        webSearch,
+            webSearch,
             answerType,
             inputAnswerType,
             inputAnswer,
@@ -135,177 +133,188 @@ export default function QuizPage({ initialQuiz = null, defaultCategory, external
     }
 
     return (
-        <div style={{ display: "flex", flexDirection: "column", flex: "1", gap: "5px" }}>
-            <div>
-                <h3>Quiz name</h3>
-                <input value={quizName} onChange={(e) => setQuizName(e.target.value)} />
-            </div>
-            <div>
-                <h3>Question type</h3>
-                <select value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
-                    {QUESTION_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                    ))}
-                </select>
-            </div>
-            <div>
-                <textarea
-                    style={{ height: "15vh", width: "80vw" }}
-                    value={question}
-                    onChange={(e) => setQuestion(e.target.value)}
-                />
-            </div>
-            {questionType === 'Question + Image' && (
-                <div style={{ display: "flex", justifyContent: "center", flexDirection: "column", gap: "8px" }}>
-                    <div
-                        onClick={() => setPickTarget('question')}
-                        style={{
-                            width: "40vw",
-                            height: "20vh",
-                            border: "1px solid #ccc",
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "center",
-                            cursor: "pointer",
-                            overflow: "hidden",
-                        }}
-                    >
-                        {questionImage ? (
-                            <img
-                                src={resolveImageSrc(questionImage, externalBasePath)}
-                                alt="Question"
-                                style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                            />
-                        ) : (
-                            <span style={{ color: "white", opacity: 0.7 }}>Tap to set image</span>
-                        )}
-                    </div>
-                    <div style={{ display: "flex", flexDirection: "column", alignItems: "center", width: "80vw" }}>
-                        <label style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Web search query (optional)</label>
-                        <input
-                            style={{ width: "100%" }}
-                            value={webSearch}
-                            onChange={(e) => setWebSearch(e.target.value)}
-                            placeholder="Enter terms to search for alternative images"
-                        />
-                        <small style={{ color: "#666" }}>If specified, this query will be used to search the web for alternative pictures for the quiz.</small>
-                    </div>
+        <div style={{ display: "flex", flexDirection: "column", flex: "1", minHeight: 0, height: "100%" }}>
+            <div style={{ flex: "1", minHeight: 0, overflowY: "auto", padding: "10px", display: "flex", flexDirection: "column", gap: "10px" }}>
+                <div>
+                    <h3 style={{ margin: "0 0 4px" }}>Quiz name</h3>
+                    <input style={{ width: "100%", boxSizing: "border-box" }} value={quizName} onChange={(e) => setQuizName(e.target.value)} />
                 </div>
-            )}
-            <div>
-                <h3>Answer type</h3>
-                <select value={answerType} onChange={(e) => setAnswerType(e.target.value)}>
-                    {ANSWER_TYPES.map((type) => (
-                        <option key={type} value={type}>{type}</option>
-                    ))}
-                </select>
-            </div>
 
-            {answerType === 'Input' && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    <select value={inputAnswerType} onChange={(e) => setInputAnswerType(e.target.value)}>
-                        {INPUT_ANSWER_TYPES.map((type) => (
+                <div>
+                    <h3 style={{ margin: "0 0 4px" }}>Question type</h3>
+                    <select style={{ width: "100%" }} value={questionType} onChange={(e) => setQuestionType(e.target.value)}>
+                        {QUESTION_TYPES.map((type) => (
                             <option key={type} value={type}>{type}</option>
                         ))}
                     </select>
-                    <input
-                        type={inputAnswerType === 'Number' ? 'number' : 'text'}
-                        value={inputAnswer}
-                        onChange={(e) => setInputAnswer(e.target.value)}
-                        placeholder="Correct answer"
+                </div>
+
+                <div>
+                    <textarea
+                        style={{ height: "15vh", width: "100%", boxSizing: "border-box", resize: "vertical" }}
+                        value={question}
+                        onChange={(e) => setQuestion(e.target.value)}
                     />
                 </div>
-            )}
 
-            {answerType === 'Text select' && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    {answers.map((answer, index) => (
-                        <div key={index} style={{ display: "flex", gap: "5px", alignItems: "center" }}>
-                            <input
-                                type="radio"
-                                name="correctAnswer"
-                                checked={answer.correct}
-                                onChange={() => handleAnswerCorrectChange(index)}
-                            />
-                            <input
-                                style={{ flex: 1 }}
-                                value={answer.text}
-                                onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                                placeholder="Answer text"
-                            />
-                            <button onClick={() => handleRemoveAnswer(index)}>Remove</button>
+                {questionType === 'Question + Image' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                        <div
+                            onClick={() => setPickTarget('question')}
+                            style={{
+                                width: "100%",
+                                maxWidth: "300px",
+                                height: "20vh",
+                                border: "1px solid #ccc",
+                                display: "flex",
+                                alignItems: "center",
+                                justifyContent: "center",
+                                cursor: "pointer",
+                                overflow: "hidden",
+                                margin: "0 auto",
+                            }}
+                        >
+                            {questionImage ? (
+                                <img
+                                    src={resolveImageSrc(questionImage, externalBasePath)}
+                                    alt="Question"
+                                    style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                />
+                            ) : (
+                                <span style={{ color: "white", opacity: 0.7 }}>Tap to set image</span>
+                            )}
                         </div>
-                    ))}
-                </div>
-            )}
-
-            {answerType === 'Image select' && (
-                <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
-                    {answers.map((answer, index) => (
-                        <div key={index} style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                        <div style={{ display: "flex", flexDirection: "column" }}>
+                            <label style={{ fontSize: "0.9rem", marginBottom: "4px" }}>Web search query (optional)</label>
                             <input
-                                type="radio"
-                                name="correctAnswer"
-                                checked={answer.correct}
-                                onChange={() => handleAnswerCorrectChange(index)}
+                                style={{ width: "100%", boxSizing: "border-box" }}
+                                value={webSearch}
+                                onChange={(e) => setWebSearch(e.target.value)}
+                                placeholder="Enter terms to search for alternative images"
                             />
-                            <div
-                                onClick={() => setPickTarget(index)}
-                                style={{
-                                    width: "15vw",
-                                    height: "8vh",
-                                    border: "1px solid #ccc",
-                                    display: "flex",
-                                    alignItems: "center",
-                                    justifyContent: "center",
-                                    cursor: "pointer",
-                                    overflow: "hidden",
-                                }}
-                            >
-                                {answer.image ? (
-                                    <img
-                                        src={resolveImageSrc(answer.image, externalBasePath)}
-                                        alt="Answer"
-                                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                                    />
-                                ) : (
-                                    <span style={{ color: "white", opacity: 0.7, fontSize: "10px" }}>Tap for image</span>
-                                )}
+                            <small style={{ color: "#666" }}>If specified, this query will be used to search the web for alternative pictures for the quiz.</small>
+                        </div>
+                    </div>
+                )}
+
+                <div>
+                    <h3 style={{ margin: "0 0 4px" }}>Answer type</h3>
+                    <select style={{ width: "100%" }} value={answerType} onChange={(e) => setAnswerType(e.target.value)}>
+                        {ANSWER_TYPES.map((type) => (
+                            <option key={type} value={type}>{type}</option>
+                        ))}
+                    </select>
+                </div>
+
+                {answerType === 'Input' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        <select value={inputAnswerType} onChange={(e) => setInputAnswerType(e.target.value)}>
+                            {INPUT_ANSWER_TYPES.map((type) => (
+                                <option key={type} value={type}>{type}</option>
+                            ))}
+                        </select>
+                        <input
+                            style={{ width: "100%", boxSizing: "border-box" }}
+                            type={inputAnswerType === 'Number' ? 'number' : 'text'}
+                            value={inputAnswer}
+                            onChange={(e) => setInputAnswer(e.target.value)}
+                            placeholder="Correct answer"
+                        />
+                    </div>
+                )}
+
+                {answerType === 'Text select' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        {answers.map((answer, index) => (
+                            <div key={index} style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                                <input
+                                    type="radio"
+                                    name="correctAnswer"
+                                    checked={answer.correct}
+                                    onChange={() => handleAnswerCorrectChange(index)}
+                                />
+                                <input
+                                    style={{ flex: 1, minWidth: 0 }}
+                                    value={answer.text}
+                                    onChange={(e) => handleAnswerTextChange(index, e.target.value)}
+                                    placeholder="Answer text"
+                                />
+                                <button onClick={() => handleRemoveAnswer(index)}>Remove</button>
                             </div>
-                            <input
-                                style={{ flex: 1 }}
-                                value={answer.text}
-                                onChange={(e) => handleAnswerTextChange(index, e.target.value)}
-                                placeholder="Answer label"
-                            />
-                            <button onClick={() => handleRemoveAnswer(index)}>Remove</button>
-                        </div>
-                    ))}
-                </div>
-            )}
+                        ))}
+                    </div>
+                )}
 
-            {answerType !== 'Input' && (
-                <div style={{ gap: "30px", display: "flex", justifyContent: "center" }}>
-                    <button onClick={handleClearAnswers}>Clear answers</button>
-                    <button onClick={handleAddAnswer}>Add answer</button>
-                </div>
-            )}
+                {answerType === 'Image select' && (
+                    <div style={{ display: "flex", flexDirection: "column", gap: "5px" }}>
+                        {answers.map((answer, index) => (
+                            <div key={index} style={{ display: "flex", gap: "5px", alignItems: "center" }}>
+                                <input
+                                    type="radio"
+                                    name="correctAnswer"
+                                    checked={answer.correct}
+                                    onChange={() => handleAnswerCorrectChange(index)}
+                                />
+                                <div
+                                    onClick={() => setPickTarget(index)}
+                                    style={{
+                                        width: "60px",
+                                        height: "60px",
+                                        flexShrink: 0,
+                                        border: "1px solid #ccc",
+                                        display: "flex",
+                                        alignItems: "center",
+                                        justifyContent: "center",
+                                        cursor: "pointer",
+                                        overflow: "hidden",
+                                    }}
+                                >
+                                    {answer.image ? (
+                                        <img
+                                            src={resolveImageSrc(answer.image, externalBasePath)}
+                                            alt="Answer"
+                                            style={{ width: "100%", height: "100%", objectFit: "cover" }}
+                                        />
+                                    ) : (
+                                        <span style={{ color: "white", opacity: 0.7, fontSize: "10px", textAlign: "center" }}>Tap for image</span>
+                                    )}
+                                </div>
+                                <input
+                                    style={{ flex: 1, minWidth: 0 }}
+                                    value={answer.text}
+                                    onChange={(e) => handleAnswerTextChange(index, e.target.value)}
+                                    placeholder="Answer label"
+                                />
+                                <button onClick={() => handleRemoveAnswer(index)}>Remove</button>
+                            </div>
+                        ))}
+                    </div>
+                )}
 
-            <div style={{ marginTop: "auto" }}>
-                <select disabled value={category}>
-                    <option value={category}>{category || 'General knowledge'}</option>
-                </select>
+                {answerType !== 'Input' && (
+                    <div style={{ gap: "30px", display: "flex", justifyContent: "center" }}>
+                        <button onClick={handleClearAnswers}>Clear answers</button>
+                        <button onClick={handleAddAnswer}>Add answer</button>
+                    </div>
+                )}
+
+                <div>
+                    <select disabled value={category} style={{ width: "100%" }}>
+                        <option value={category}>{category || 'General knowledge'}</option>
+                    </select>
+                </div>
             </div>
-            <div style={{ display: "flex", justifyContent: "center", WebkitJustifyContent: "space-between", gap: "10px" }}>
-                <button style={{ backgroundColor: "#888", height: "6vh", width: "20vw" }} onClick={onCancel}>
+
+            <div style={{ flex: "0 0 auto", display: "flex", justifyContent: "space-between", gap: "10px", padding: "10px" }}>
+                <button style={{ backgroundColor: "#888", height: "6vh", flex: 1 }} onClick={onCancel}>
                     Cancel
                 </button>
                 {initialQuiz && onDelete && (
-                    <button style={{ backgroundColor: "red", height: "6vh", width: "20vw" }} onClick={handleDelete}>
+                    <button style={{ backgroundColor: "red", height: "6vh", flex: 1 }} onClick={handleDelete}>
                         Delete
                     </button>
                 )}
-                <button style={{ backgroundColor: "green", height: "6vh", width: "20vw" }} onClick={handleSubmit}>
+                <button style={{ backgroundColor: "green", height: "6vh", flex: 1 }} onClick={handleSubmit}>
                     {initialQuiz ? 'Save' : 'Create'}
                 </button>
             </div>

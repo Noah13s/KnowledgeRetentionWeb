@@ -5,12 +5,13 @@ const config: CapacitorConfig = {
   appName: 'knowledgeretention',
   webDir: 'dist',
   plugins: {
+    CapacitorHttp: { enabled: true },
     SocialLogin: {
       providers: {
-        google: true,      
-        facebook: false,   
-        apple: false,     
-        twitter: false  
+        google: true,
+        facebook: false,
+        apple: false,
+        twitter: false
       },
       logLevel: 1 // Warnings and errors only
     }
