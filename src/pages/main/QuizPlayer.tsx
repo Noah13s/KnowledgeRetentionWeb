@@ -3,24 +3,13 @@ import { Capacitor } from '@capacitor/core';
 import { judgeAnswerWithLlm, preloadLocalLlm } from '../../lib/localLlm';
 import { searchImages } from '../../lib/imageSearch';
 import type { ImageSearchResult } from '../../lib/imageSearch';
+import type { Quiz } from './types';
+
 
 interface QuizAnswer {
     text: string;
     image: string;
     correct: boolean;
-}
-
-interface Quiz {
-    quizName: string;
-    questionType: string;
-    question: string;
-    questionImage: string;
-    webSearch: string;
-    answerType: string;
-    inputAnswerType: string;
-    inputAnswer: string;
-    category: string;
-    answers: any[];
 }
 
 interface QuizPlayerProps {

@@ -1,24 +1,12 @@
 import { useState } from 'react';
 import { Capacitor } from '@capacitor/core';
 import ImagePage from './ImageLibrary';
+import type { Quiz } from './types';
 
 interface QuizAnswer {
     text: string;
     image: string;
     correct: boolean;
-}
-
-interface Quiz {
-    quizName: string;
-    questionType: string;
-    question: string;
-    questionImage: string;
-    webSearch: string;
-    answerType: string;
-    inputAnswerType: string;
-    inputAnswer: string;
-    category: string;
-    answers: any[];
 }
 
 interface QuizEditorProps {
