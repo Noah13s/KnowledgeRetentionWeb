@@ -1,4 +1,4 @@
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { App as CapacitorApp } from '@capacitor/app';
 import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
@@ -7,6 +7,7 @@ import GridList from '../../components/GridList';
 import ImagePage from './ImageLibrary';
 import { usePersistentState } from '../../lib/usePersistentState';
 import QuizEditor from './QuizEditor';
+import PromptModal from '../../components/PromptModal';
 import QuizPlayer from './QuizPlayer';
 import type { Quiz } from './types';
 import type { Category } from './types';
@@ -496,6 +497,11 @@ export default function CategoryPage() {
     }
   }
 
+  // Prompt modal state for renaming categories
+  const [renameModalOpen, setRenameModalOpen] = useState(false);
+  const [renameInitialValue, setRenameInitialValue] = useState('');
+  const [renameTargetId, setRenameTargetId] = useState<string | null>(null);
+
   async function renameCategory() {
     if (selectedCategoryIds.length !== 1) return;
 
@@ -503,12 +509,24 @@ export default function CategoryPage() {
     const selectedCategory = findCategoryById(categories, selectedId);
     if (!selectedCategory) return;
 
+    setRenameInitialValue(selectedCategory.Name);
+    setRenameTargetId(selectedId);
+    setRenameModalOpen(true);
+  }
+
+  async function performRenameCategory(newNameRaw: string | null) {
+    setRenameModalOpen(false);
+    if (newNameRaw === null) return;
+
+    const selectedId = renameTargetId;
+    setRenameTargetId(null);
+    if (!selectedId) return;
+
+    const selectedCategory = findCategoryById(categories, selectedId);
+    if (!selectedCategory) return;
+
     const oldName = selectedCategory.Name;
-    const newName = window.prompt('Enter a new name for this category:', oldName);
-
-    if (!newName) return;
-
-    const cleanNewName = normalizeText(newName);
+    const cleanNewName = normalizeText(newNameRaw);
 
     if (!cleanNewName || cleanNewName === oldName) {
       return;
@@ -972,6 +990,12 @@ export default function CategoryPage() {
           />
         </div>
       </div>
+        <PromptModal
+          open={renameModalOpen}
+          message={'Enter a new name for this category:'}
+          defaultValue={renameInitialValue}
+          onConfirm={performRenameCategory}
+        />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { App as CapacitorApp } from '@capacitor/app';
 import './ImageLibrary.css';
 import { Capacitor } from '@capacitor/core';
 import { usePersistentState } from '../../lib/usePersistentState';
+import PromptModal from '../../components/PromptModal';
 import { SocialLogin } from '@capgo/capacitor-social-login';
 import JSZip from 'jszip';
 
@@ -453,17 +454,35 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
         }
     }
 
+    // Prompt modal state for renaming files/folders
+    const [renameModalOpen, setRenameModalOpen] = useState(false);
+    const [renameInitialValue, setRenameInitialValue] = useState('');
+    const [renameSelectedPath, setRenameSelectedPath] = useState<string | null>(null);
+
     async function handleRenameSelected() {
         if (selectedPaths.length !== 1) return;
         const selectedPath = selectedPaths[0];
         const targetItem = items.find(i => i.path === selectedPath);
         if (!targetItem) return;
-        const newName = window.prompt("Enter a new name:", targetItem.title);
-        if (newName === null || newName.trim() === "") return;
+        setRenameInitialValue(targetItem.title);
+        setRenameSelectedPath(selectedPath);
+        setRenameModalOpen(true);
+    }
+
+    async function performRenameSelected(newNameRaw: string | null) {
+        setRenameModalOpen(false);
+        if (newNameRaw === null) return;
+        const selectedPath = renameSelectedPath;
+        setRenameSelectedPath(null);
+        if (!selectedPath) return;
+        const targetItem = items.find(i => i.path === selectedPath);
+        if (!targetItem) return;
+        const newName = newNameRaw.trim();
+        if (newName === "") return;
         try {
             await Filesystem.rename({
                 from: `${currentPath}/${targetItem.title}`,
-                to: `${currentPath}/${newName.trim()}`,
+                to: `${currentPath}/${newName}`,
                 directory: Directory.External
             });
             cancelSelection();
@@ -515,6 +534,8 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
         if (!pickedPath) return;
         onPick?.(pickedPath);
     }
+
+    // Prompt modal is rendered in the JSX below
 
     async function handleExportAll() {
         if (isExporting || isImporting) return;
@@ -715,6 +736,12 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                     </button>
                 </div>
             )}
+            <PromptModal
+                open={renameModalOpen}
+                message={"Enter a new name:"}
+                defaultValue={renameInitialValue}
+                onConfirm={performRenameSelected}
+            />
         </div>
     );
 }
