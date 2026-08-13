@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useState } from "react";
 import GridList from "../../components/GridList";
-import { Filesystem, Directory } from '@capacitor/filesystem';
+import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import { App as CapacitorApp } from '@capacitor/app';
 import './ImageLibrary.css';
 import { Capacitor } from '@capacitor/core';
@@ -17,6 +17,15 @@ export type GridItem = {
     type: "file" | "directory";
     image?: string;
 };
+
+type ImageUsage = {
+    quizId: string;
+    quizFile: string;
+    quizName: string;
+    role: 'question' | 'answer';
+};
+
+type ImageUsageMap = Record<string, ImageUsage[]>;
 
 interface ImageLibraryProps {
     mode?: 'browse' | 'picker';
@@ -126,6 +135,133 @@ async function readDirRecursive(path: string): Promise<{ path: string; data: str
     return collected;
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+    return typeof value === 'object' && value !== null;
+}
+
+function normalizeImagePath(path: string): string {
+    let normalized = path.trim().replaceAll('\\', '/');
+    if (!normalized) return '';
+
+    try {
+        normalized = decodeURIComponent(normalized);
+    } catch {
+        // Keep the original path if it contains malformed URL escapes.
+    }
+
+    normalized = normalized.split(/[?#]/, 1)[0];
+    normalized = normalized.replace(/^https?:\/\/localhost\/_capacitor_file_\/?/i, '/');
+    normalized = normalized.replace(/^file:\/\/+?/i, '/');
+
+    const imagesSegment = normalized.toLowerCase().lastIndexOf('/images/');
+    if (imagesSegment !== -1) {
+        return `images/${normalized.slice(imagesSegment + '/images/'.length)}`
+            .replace(/\/{2,}/g, '/')
+            .toLowerCase();
+    }
+
+    return normalized.replace(/^\/+/, '').replace(/\/{2,}/g, '/').toLowerCase();
+}
+
+function collectQuizImageUsage(value: unknown, quizFile: string, usageMap: ImageUsageMap): void {
+    const quizzes = Array.isArray(value) ? value : [value];
+
+    quizzes.forEach((quiz, quizIndex) => {
+        if (!isRecord(quiz)) return;
+
+        const fallbackName = quizFile.split('/').pop()?.replace(/\.json$/i, '') ?? `Quiz ${quizIndex + 1}`;
+        const quizName = typeof quiz.quizName === 'string' && quiz.quizName.trim()
+            ? quiz.quizName.trim()
+            : fallbackName;
+        const quizId = `${quizFile}#${quizIndex}`;
+
+        const addUsage = (imagePath: unknown, role: ImageUsage['role']) => {
+            if (typeof imagePath !== 'string') return;
+            const key = normalizeImagePath(imagePath);
+            if (!key.startsWith('images/')) return;
+
+            const usage: ImageUsage = { quizId, quizFile, quizName, role };
+            const existing = usageMap[key] ?? [];
+            if (!existing.some((item) => item.quizId === quizId && item.role === role)) {
+                usageMap[key] = [...existing, usage];
+            }
+        };
+
+        addUsage(quiz.questionImage, 'question');
+        if (Array.isArray(quiz.answers)) {
+            quiz.answers.forEach((answer) => {
+                if (isRecord(answer)) addUsage(answer.image, 'answer');
+            });
+        }
+    });
+}
+
+async function scanQuizImageUsage(): Promise<ImageUsageMap> {
+    const usageMap: ImageUsageMap = {};
+
+    async function visit(path: string): Promise<void> {
+        let result;
+        try {
+            result = await Filesystem.readdir({ path, directory: Directory.External });
+        } catch (error) {
+            console.warn(`Could not scan quiz folder "${path}" for image usage:`, error);
+            return;
+        }
+
+        for (const entry of result.files) {
+            const entryPath = `${path}/${entry.name}`;
+            if (entry.type === 'directory') {
+                await visit(entryPath);
+                continue;
+            }
+            if (!entry.name.toLowerCase().endsWith('.json')) continue;
+
+            try {
+                const file = await Filesystem.readFile({
+                    path: entryPath,
+                    directory: Directory.External,
+                    encoding: Encoding.UTF8,
+                });
+                collectQuizImageUsage(JSON.parse(file.data as string), entryPath, usageMap);
+            } catch (error) {
+                console.warn(`Could not inspect quiz file "${entryPath}" for image usage:`, error);
+            }
+        }
+    }
+
+    await visit('quizzes');
+    return usageMap;
+}
+
+let cachedQuizImageUsage: ImageUsageMap | null = null;
+let quizImageUsagePromise: Promise<ImageUsageMap> | null = null;
+let quizImageUsageGeneration = 0;
+
+export function invalidateQuizImageUsageCache(): void {
+    quizImageUsageGeneration += 1;
+    cachedQuizImageUsage = null;
+    quizImageUsagePromise = null;
+}
+
+function loadQuizImageUsage(): Promise<ImageUsageMap> {
+    if (cachedQuizImageUsage) return Promise.resolve(cachedQuizImageUsage);
+    if (quizImageUsagePromise) return quizImageUsagePromise;
+
+    const generation = quizImageUsageGeneration;
+    quizImageUsagePromise = scanQuizImageUsage().then((usage) => {
+        if (generation === quizImageUsageGeneration) {
+            cachedQuizImageUsage = usage;
+            quizImageUsagePromise = null;
+        }
+        return usage;
+    });
+    return quizImageUsagePromise;
+}
+
+function quizCount(usages: ImageUsage[]): number {
+    return new Set(usages.map((usage) => usage.quizId)).size;
+}
+
 export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLibraryProps) {
     const isPickerMode = mode === 'picker';
     const [items, setItems] = usePersistentState<GridItem[]>('imageLibrary.items', []);
@@ -137,12 +273,14 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
     const [pickedPath, setPickedPath] = usePersistentState<string | null>('imageLibrary.pickedPath', null);
     const [isExporting, setIsExporting] = useState(false);
     const [isImporting, setIsImporting] = useState(false);
+    const [imageUsage, setImageUsage] = useState<ImageUsageMap>({});
     const [modalImage, setModalImage] = useState<{
         src: string;
         title: string;
         width?: number;
         height?: number;
         sizeBytes?: number;
+        usages: ImageUsage[];
     } | null>(null);
     const [zoomLevel, setZoomLevel] = useState(1);
     const [pan, setPan] = useState({ x: 0, y: 0 });
@@ -165,8 +303,20 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
     });
 
     useEffect(() => {
-        loadImages();
+        void loadImages();
     }, [currentPath]);
+
+    useEffect(() => {
+        let active = true;
+
+        void loadQuizImageUsage().then((usage) => {
+            if (active) setImageUsage(usage);
+        });
+
+        return () => {
+            active = false;
+        };
+    }, []);
 
     async function loadImages() {
         try {
@@ -194,6 +344,11 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
         } catch (e) {
             console.error("Failed to load directory:", e);
         }
+    }
+
+    function getImageUsages(item: GridItem): ImageUsage[] {
+        if (!item.filePath) return [];
+        return imageUsage[normalizeImagePath(item.filePath)] ?? [];
     }
 
     async function createFolder() {
@@ -262,7 +417,12 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
             width?: number;
             height?: number;
             sizeBytes?: number;
-        } = { src: item.image, title: item.title };
+            usages: ImageUsage[];
+        } = {
+            src: item.image,
+            title: item.title,
+            usages: item.filePath ? imageUsage[normalizeImagePath(item.filePath)] ?? [] : [],
+        };
 
         await new Promise<void>((resolve) => {
             if (image.complete) {
@@ -600,7 +760,9 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
 
             cancelSelection();
             setPickedPath(null);
-            await loadImages();
+            invalidateQuizImageUsageCache();
+            const [, usage] = await Promise.all([loadImages(), loadQuizImageUsage()]);
+            setImageUsage(usage);
             alert("Import complete! Your data has been restored from Google Drive.");
         } catch (e) {
             console.error("Import failed:", e);
@@ -671,7 +833,19 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                         item.type === "directory" ? (
                             <div className="folder">📁</div>
                         ) : (
-                            <img className="thumbnail" src={item.image} alt={item.title} />
+                            <div className="image-library-thumbnail">
+                                <img className="thumbnail" src={item.image} alt={item.title} />
+                                <span
+                                    className={`image-usage-badge ${getImageUsages(item).length > 0 ? 'used' : 'unused'}`}
+                                    title={getImageUsages(item).length > 0
+                                        ? `Used in: ${getImageUsages(item).map((usage) => usage.quizName).join(', ')}`
+                                        : 'Not used in any quiz'}
+                                >
+                                    {getImageUsages(item).length > 0
+                                        ? `Used · ${quizCount(getImageUsages(item))}`
+                                        : 'Unused'}
+                                </span>
+                            </div>
                         )
                     }
                 />
@@ -715,15 +889,33 @@ export default function ImagePage({ mode = 'browse', onPick, onCancel }: ImageLi
                            />
                        </div>
                        <div className="image-modal-caption">{modalImage.title}</div>
-                       <div className="image-modal-details">
+                        <div className="image-modal-details">
                            {modalImage.width && modalImage.height && (
                                <span>Resolution: {modalImage.width} × {modalImage.height}</span>
                            )}
                            {modalImage.sizeBytes !== undefined && (
                                <span>{modalImage.width && modalImage.height ? ' • ' : ''}Size: {formatBytes(modalImage.sizeBytes)}</span>
-                           )}
-                       </div>
-                   </div>
+                            )}
+                        </div>
+                        <div className={`image-modal-usage ${modalImage.usages.length > 0 ? 'used' : 'unused'}`}>
+                            {modalImage.usages.length > 0 ? (
+                                <>
+                                    <strong>
+                                        Used in {quizCount(modalImage.usages)} {quizCount(modalImage.usages) === 1 ? 'quiz' : 'quizzes'}
+                                    </strong>
+                                    <ul>
+                                        {modalImage.usages.map((usage) => (
+                                            <li key={`${usage.quizId}:${usage.role}`}>
+                                                {usage.quizName} ({usage.role})
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </>
+                            ) : (
+                                <strong>Not used in any quiz</strong>
+                            )}
+                        </div>
+                    </div>
                </div>
             )}
             {!isPickerMode && (

@@ -4,7 +4,7 @@ import { Capacitor } from '@capacitor/core';
 import { Filesystem, Directory, Encoding } from '@capacitor/filesystem';
 import './CategoryEditor.css';
 import GridList from '../../components/GridList';
-import ImagePage from './ImageLibrary';
+import ImagePage, { invalidateQuizImageUsageCache } from './ImageLibrary';
 import { usePersistentState } from '../../lib/usePersistentState';
 import QuizEditor from './QuizEditor';
 import PromptModal from '../../components/PromptModal';
@@ -737,6 +737,7 @@ export default function CategoryPage() {
         data: JSON.stringify(quizToSave, null, 2),
         recursive: true,
       });
+      invalidateQuizImageUsageCache();
 
       if (
         originalQuiz &&
@@ -794,6 +795,7 @@ export default function CategoryPage() {
 
       const fileName = `quizzes/${categoryPathForFile}/${quiz.quizName}.json`.replace(/\/+/g, '/');
       await Filesystem.deleteFile({ path: fileName, directory: Directory.External });
+      invalidateQuizImageUsageCache();
     } catch (e) {
       console.warn('Quiz file not found, nothing to delete on disk:', e);
     }

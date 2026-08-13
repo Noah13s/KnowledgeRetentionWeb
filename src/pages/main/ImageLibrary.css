@@ -5,6 +5,32 @@ button:disabled {
     color: #bdc3c7 !important;
 }
 
+.image-library-thumbnail {
+    position: relative;
+    min-height: 100px;
+}
+
+.image-usage-badge {
+    position: absolute;
+    left: 4px;
+    bottom: 4px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    color: white;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.65);
+}
+
+.image-usage-badge.used {
+    background: #198754;
+}
+
+.image-usage-badge.unused {
+    background: rgba(75, 85, 99, 0.9);
+}
+
 .image-modal-overlay {
     position: fixed;
     inset: 0;
@@ -78,4 +104,30 @@ button:disabled {
 
 .image-modal-details span {
     display: inline;
+}
+
+.image-modal-usage {
+    border-radius: 8px;
+    padding: 8px 12px;
+    color: white;
+    font-size: 0.85rem;
+    text-align: left;
+}
+
+.image-modal-usage.used {
+    background: rgba(25, 135, 84, 0.28);
+    border: 1px solid #198754;
+}
+
+.image-modal-usage.unused {
+    background: rgba(75, 85, 99, 0.28);
+    border: 1px solid #4b5563;
+    text-align: center;
+}
+
+.image-modal-usage ul {
+    margin: 5px 0 0;
+    padding-left: 20px;
+    max-height: 110px;
+    overflow-y: auto;
 }
